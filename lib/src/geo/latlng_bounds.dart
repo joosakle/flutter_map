@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import 'package:latlong2/latlong.dart';
-import 'package:vector_math/vector_math_64.dart';
 
 /// Data structure representing rectangular bounding box constrained by its
 /// northwest and southeast corners
@@ -61,26 +60,7 @@ class LatLngBounds {
     required this.south,
     required this.east,
     required this.west,
-  })  : assert(
-            north <= 90, "The north latitude can't be bigger than 90: $north"),
-        assert(north >= -90,
-            "The north latitude can't be smaller than -90: $north"),
-        assert(
-            south <= 90, "The south latitude can't be bigger than 90: $south"),
-        assert(south >= -90,
-            "The south latitude can't be smaller than -90: $south"),
-        assert(
-            east <= 180, "The east longitude can't be bigger than 180: $east"),
-        assert(east >= -180,
-            "The east longitude can't be smaller than -180: $east"),
-        assert(
-            west <= 180, "The west longitude can't be bigger than 180: $west"),
-        assert(west >= -180,
-            "The west longitude can't be smaller than -180: $west"),
-        assert(north >= south,
-            "The north latitude can't be smaller than the south latitude"),
-        assert(east >= west,
-            "The west longitude can't be smaller than the east longitude");
+  });
 
   /// Create a new [LatLngBounds] from a list of [LatLng] points. This
   /// calculates the bounding box of the provided points.
@@ -90,10 +70,11 @@ class LatLngBounds {
       'LatLngBounds cannot be created with an empty List of LatLng',
     );
     // initialize bounds with max values.
-    double minX = 180;
-    double maxX = -180;
-    double minY = 90;
-    double maxY = -90;
+    double minX = double.infinity;
+    double maxX = double.negativeInfinity;
+    double minY = double.infinity;
+    double maxY = double.negativeInfinity;
+
     // find the largest and smallest latitude and longitude
     for (final point in points) {
       if (point.longitude < minX) minX = point.longitude;
@@ -112,20 +93,20 @@ class LatLngBounds {
   /// Expands bounding box by [latLng] coordinate point. This method mutates
   /// the bounds object on which it is called.
   void extend(LatLng latLng) {
-    north = min(90, max(north, latLng.latitude));
-    south = max(-90, min(south, latLng.latitude));
-    east = min(180, max(east, latLng.longitude));
-    west = max(-180, min(west, latLng.longitude));
+    north = max(north, latLng.latitude);
+    south = min(south, latLng.latitude);
+    east = max(east, latLng.longitude);
+    west = min(west, latLng.longitude);
   }
 
   /// Expands bounding box by other [bounds] object. If provided [bounds] object
   /// is smaller than current one, it is not shrunk. This method mutates
   /// the bounds object on which it is called.
   void extendBounds(LatLngBounds bounds) {
-    north = min(90, max(north, bounds.north));
-    south = max(-90, min(south, bounds.south));
-    east = min(180, max(east, bounds.east));
-    west = max(-180, min(west, bounds.west));
+    north = max(north, bounds.north);
+    south = min(south, bounds.south);
+    east = max(east, bounds.east);
+    west = min(west, bounds.west);
   }
 
   /// Obtain coordinates of southwest corner of the bounds.
@@ -154,28 +135,7 @@ class LatLngBounds {
 
   /// Obtain coordinates of the bounds center
   LatLng get center {
-    // https://stackoverflow.com/a/4656937
-    // http://www.movable-type.co.uk/scripts/latlong.html
-    // coord 1: southWest
-    // coord 2: northEast
-    // phi: lat
-    // lambda: lng
-
-    final phi1 = south * degrees2Radians;
-    final lambda1 = west * degrees2Radians;
-    final phi2 = north * degrees2Radians;
-
-    // delta lambda = lambda2-lambda1
-    final dLambda = degrees2Radians * (east - west);
-
-    final bx = cos(phi2) * cos(dLambda);
-    final by = cos(phi2) * sin(dLambda);
-    final phi3 = atan2(sin(phi1) + sin(phi2),
-        sqrt((cos(phi1) + bx) * (cos(phi1) + bx) + by * by));
-    final lambda3 = lambda1 + atan2(by, cos(phi1) + bx);
-
-    // phi3 and lambda3 are actually in radians and LatLng wants degrees
-    return LatLng(phi3 * radians2Degrees, lambda3 * radians2Degrees);
+    return LatLng((north + south) / 2, (east + west) / 2);
   }
 
   /// Checks whether [point] is inside bounds
